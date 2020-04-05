@@ -2,39 +2,13 @@
 const express = require('express');
 const server = express();
 
+const db = require('./db');
+
 //configurar arquivos estáticos (css, arquivos, imagens )
 server.use(express.static('public'));
 
-const ideas = [
-    {
-        img: 'https://image.flaticon.com/icons/svg/2729/2729007.svg',
-        title: 'Cursos de Programação',
-        category: 'Estudo',
-        description: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Tempore quia ea architecto quos et! Necessitatibus consequatur nisi excepturi reprehenderit obcaecati accusantium cum quaerat! Iste harum tempora consequatur sed! Distinctio, libero',
-        url: 'https://rocketseat.com.br'
-    },
-    {
-        img: 'https://image.flaticon.com/icons/svg/2729/2729005.svg',
-        title:'Exercícios',
-        category: 'Saúde',
-        description: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Tempore quia ea architecto quos et! Necessitatibus consequatur nisi excepturi reprehenderit obcaecati accusantium cum quaerat! Iste harum tempora consequatur sed! Distinctio, libero.',
-        url:'https://rocketseat.com.br'
-    },
-    {
-        img: 'https://image.flaticon.com/icons/svg/2729/2729027.svg',
-        title: 'Meditação',
-        category: 'Mentalidade',
-        description: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Tempore quia ea architecto quos et! Necessitatibus consequatur nisi excepturi reprehenderit obcaecati accusantium cum quaerat! Iste harum tempora consequatur sed! Distinctio, libero.',
-        url: 'https://rocketseat.com.br'
-    },
-    {
-        img: 'https://image.flaticon.com/icons/svg/2729/2729032.svg',
-        title: 'Karaoke',
-        category: 'Diversão em familia',
-        description: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Tempore quia ea architecto quos et! Necessitatibus consequatur nisi excepturi reprehenderit obcaecati accusantium cum quaerat! Iste harum tempora consequatur sed! Distinctio, libero.',
-        url: 'https://rocketseat.com.br'
-    }
-];
+//habilitar o uso do req.body
+server.use(express.urlencoded({extended: true}));
 
 //configurar o nunjucks
 //pasta views
@@ -47,19 +21,62 @@ nunjucks.configure('views', {
 //criar rota
 //capturar pedido do cliente para responder
 server.get('/', (req, res) => {
-    const reverseIdeas = [...ideas].reverse();
-    let lastIdeas = [];
-    for (let idea of reverseIdeas) {
-        if(lastIdeas.length < 2) {
-            lastIdeas.push(idea);
+    db.all(`SELECT * FROM ideas`, (err, rows) => {
+        if(err) {
+            console.log(err)
+            return res.send("Erro no banco de dados") 
         }
-    }
-    return res.render('index.html', {ideas: lastIdeas})
+        const reverseIdeas = [...rows].reverse();
+        let lastIdeas = [];
+        for (let idea of reverseIdeas) {
+            if(lastIdeas.length < 2) {
+                lastIdeas.push(idea);
+            }
+        }
+        return res.render('index.html', {ideas: lastIdeas})
+    })
 })
 
-server.get('/ideias', (req, res) => { 
-    const reverseIdeas = [...ideas].reverse();
-    return res.render('ideias.html', {ideas: reverseIdeas})
+server.get('/ideias', (req, res) => {
+    //Consultar dados na tabela
+    db.all(`SELECT * FROM ideas`, (err, rows) => {
+        if(err) {
+            console.log(err)
+            return res.send("Erro no banco de dados")
+        }
+        const reverseIdeas = [...rows].reverse();
+        return res.render('ideias.html', {ideas: reverseIdeas})
+    })
+})
+
+server.post('/', (req, res) => {
+    //inserir dados na tabela
+    const query = `
+        INSERT INTO ideas(
+            image,
+            title,
+            category,
+            description,
+            link
+        ) VALUES (?,?,?,?, ?)
+    `
+    const values = [
+        req.body.image,
+        req.body.title,
+        req.body.category,
+        req.body.description,
+        req.body.link
+    ]
+
+    db.run(query, values, (err) => {
+        if(err) {
+            console.log(err)
+            return res.send("Erro no banco de dados");
+        }
+
+        return res.redirect('/ideias');
+    })
+
 })
 
 //ligar servidor na porta 3000;
